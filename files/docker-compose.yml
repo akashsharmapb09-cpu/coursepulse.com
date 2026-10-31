@@ -1,0 +1,29 @@
+# Local development database ONLY. Never used in preview/production (those use the managed PostgreSQL service).
+# Application roles (cp_owner, cp_app, cp_auth, cp_maint), RLS and functions are created by the migrations in Phase 5.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: coursepulse_local_admin
+      POSTGRES_DB: coursepulse
+      # No default password: compose refuses to start until LOCAL_DB_PASSWORD is set (see .env.example).
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:?Set LOCAL_DB_PASSWORD in .env (not committed) before running docker compose}
+    ports:
+      - "127.0.0.1:5432:5432" # loopback only: never exposed on the network
+    command:
+      - postgres
+      - -c
+      - log_statement=none # statement/parameter logging off, as in security.md §9
+      - -c
+      - log_min_duration_statement=-1
+    volumes:
+      - coursepulse_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coursepulse_local_admin -d coursepulse"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  coursepulse_pgdata:

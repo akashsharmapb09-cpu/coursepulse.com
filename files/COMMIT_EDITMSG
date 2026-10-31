@@ -1,0 +1,1 @@
+feat(app): Next.js skeleton — proxy (CSRF origin gate, CSP nonce, private-route headers), security headers config, health route, a11y-checked design tokens, problem+json, Playwright smoke suite

@@ -1,0 +1,24 @@
+# Git hooks (installed by `pnpm install` via the "prepare" script). Hooks are a convenience; CI is the enforcement.
+pre-commit:
+  parallel: false
+  commands:
+    secrets:
+      run: >
+        command -v gitleaks >/dev/null 2>&1 ||
+        { echo "gitleaks is required for commits (https://github.com/gitleaks/gitleaks#installing)"; exit 1; };
+        gitleaks protect --staged --redact --config .gitleaks.toml
+    conventions:
+      glob: "*.{ts,tsx,mts,mjs,js}"
+      run: pnpm check:conventions
+    format:
+      glob: "*.{ts,tsx,mts,mjs,js,json,css}"
+      run: pnpm exec prettier --check {staged_files}
+    lint:
+      glob: "*.{ts,tsx,mts,mjs}"
+      run: pnpm exec eslint {staged_files}
+pre-push:
+  commands:
+    typecheck:
+      run: pnpm typecheck
+    test:
+      run: pnpm test

@@ -1,0 +1,560 @@
+// =============================================================================
+// CoursePulse — Prisma schema  |  DESIGN DRAFT v0.1 (Phase 2)
+// =============================================================================
+// STATUS: Not yet run through `prisma validate` or `prisma migrate`. Phase 3/5 must:
+//   1. pin Prisma + generator/datasource syntax for the chosen Prisma major version,
+//   2. reconcile Session/Account/Verification with the Better Auth CLI output,
+//   3. apply prisma/sql/001_rls_and_permissions.draft.sql as a raw-SQL migration.
+//
+// 18 required entities (master prompt §7) + 4 supporting models:
+//   Session, Account, Verification (authentication library), AppSetting (admin settings).
+//
+// PRIVACY RULES ENCODED HERE (see docs/data-inventory.md):
+//   * FeedbackSubmission / FeedbackAnswer / FeedbackComment have NO user reference, ever.
+//   * FeedbackEligibility has NO completion timestamp and no updatedAt.
+//   * FeedbackSubmission has a DATE (no time) and no createdAt.
+//   * FeedbackComment is linked to a form+question, NOT to a submission.
+//   * No IP address, user agent, DOB, phone, address or device identifier anywhere.
+//   * Users are never hard-deleted; they are anonymized in place (tombstone).
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js" // adjust to the generator pinned in Phase 3
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")         // runtime role cp_app (pooled)
+  directUrl = env("DATABASE_URL_MIGRATE") // owner role cp_owner (direct; migrations only)
+  // cp_auth and cp_maint use separate connection strings supplied to their own clients.
+}
+
+// ----------------------------------------------------------------------------- enums
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION    // provisioned/invited by admin; invitation not yet accepted (activation pending)
+  PENDING_GUARDIAN_CONSENT // minor: email verified, awaiting guardian consent
+  ACTIVE
+  SUSPENDED
+  DELETED                 // tombstone after anonymization
+
+  @@map("user_status")
+}
+
+enum AgeGroup {
+  ADULT
+  MINOR // threshold is an institution/legal setting, not hard-coded (see AppSetting)
+
+  @@map("age_group")
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  WITHDRAWN
+
+  @@map("enrollment_status")
+}
+
+enum FormStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  ARCHIVED
+
+  @@map("form_status")
+}
+
+enum QuestionCategory {
+  COURSE_CONTENT
+  TEACHING_EFFECTIVENESS
+  COMMUNICATION
+  COURSE_ORGANIZATION
+  ASSESSMENT
+  LEARNING_RESOURCES
+  OVERALL_SATISFACTION
+
+  @@map("question_category")
+}
+
+enum QuestionType {
+  STAR_RATING        // integer 1..5 (fixed)
+  NUMERIC_RATING     // integer scale_min..scale_max (max <= 10)
+  SINGLE_CHOICE      // exactly ONE option (decision D-18, owner-confirmed)
+  MULTIPLE_CHOICE    // one or MORE options from the list, no upper bound (D-18, owner-confirmed)
+  YES_NO
+  SHORT_TEXT         // stored in FeedbackComment
+  LONG_TEXT          // stored in FeedbackComment
+  MULTIPLE_SELECTION // one or more options, capped by FeedbackQuestion.maxSelections ("choose up to N") (D-18)
+
+  @@map("question_type")
+}
+
+enum EligibilityStatus {
+  PENDING
+  SUBMITTED
+
+  @@map("eligibility_status")
+}
+
+enum CommentStatus {
+  VISIBLE
+  HIDDEN // admin moderation (abusive or self-identifying text)
+
+  @@map("comment_status")
+}
+
+enum ConsentType {
+  TERMS_ACCEPTANCE
+  PRIVACY_NOTICE
+  GUARDIAN_CONSENT
+
+  @@map("consent_type")
+}
+
+enum ConsentStatus {
+  GRANTED
+  WITHDRAWN
+
+  @@map("consent_status")
+}
+
+enum ConsentMethod {
+  SELF_DECLARATION
+  GUARDIAN_EMAIL_LINK
+  INSTITUTION_RECORD
+
+  @@map("consent_method")
+}
+
+enum DeletionStatus {
+  PENDING_CONFIRMATION // requester must confirm via emailed link
+  UNDER_REVIEW
+  COMPLETED
+  REJECTED
+  CANCELLED
+
+  @@map("deletion_status")
+}
+
+// ----------------------------------------------------------------------------- 1. User
+
+model User {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String     @db.VarChar(120)
+  email         String     @unique @db.VarChar(254) // lower-cased; CHECK (email = lower(email)) in SQL
+  emailVerified Boolean    @default(false) @map("email_verified")
+  role          Role       @default(STUDENT)
+  status        UserStatus @default(PENDING_VERIFICATION)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  studentProfile    StudentProfile?
+  instructorProfile InstructorProfile?
+  sessions          Session[]
+  accounts          Account[]
+  consents          ConsentRecord[]
+  deletionRequests  DataDeletionRequest[]
+  auditLogs         AuditLog[]            @relation("AuditActor")
+  settingsUpdated   AppSetting[]
+
+  @@index([role, status])
+  @@map("users")
+}
+
+// ----------------------------------------------------------------------------- 2. StudentProfile
+
+model StudentProfile {
+  userId        String   @id @map("user_id") @db.Uuid
+  studentNumber String   @unique @map("student_number") @db.VarChar(32) // institutional ID; roster matching only
+  ageGroup      AgeGroup @map("age_group")                              // declared/verified status, not a DOB
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollments   CourseEnrollment[]
+  eligibilities FeedbackEligibility[]
+
+  @@map("student_profiles")
+}
+
+// ----------------------------------------------------------------------------- 3. InstructorProfile
+
+model InstructorProfile {
+  userId       String   @id @map("user_id") @db.Uuid
+  departmentId String   @map("department_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user        User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department  Department                  @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  assignments InstructorCourseAssignment[]
+
+  @@index([departmentId])
+  @@map("instructor_profiles")
+}
+
+// ----------------------------------------------------------------------------- 4. Department
+
+model Department {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String   @unique @db.VarChar(16)
+  name      String   @unique @db.VarChar(120)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  instructors InstructorProfile[]
+  courses     Course[]
+
+  @@map("departments")
+}
+
+// ----------------------------------------------------------------------------- 5. Course (catalog entry)
+
+model Course {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code         String   @unique @db.VarChar(20)
+  title        String   @db.VarChar(160)
+  departmentId String   @map("department_id") @db.Uuid
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  department  Department                   @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  enrollments CourseEnrollment[]
+  assignments InstructorCourseAssignment[]
+
+  @@index([departmentId])
+  @@map("courses")
+}
+
+// ----------------------------------------------------------------------------- 8. AcademicSemester
+
+model AcademicSemester {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  academicYear String   @map("academic_year") @db.VarChar(9) // e.g. "2026-27"
+  termNumber   Int      @map("term_number") @db.SmallInt     // 1..4, CHECK in SQL
+  startDate    DateTime @map("start_date") @db.Date
+  endDate      DateTime @map("end_date") @db.Date
+  isCurrent    Boolean  @default(false) @map("is_current")   // partial unique index: one current
+
+  enrollments CourseEnrollment[]
+  assignments InstructorCourseAssignment[]
+
+  @@unique([academicYear, termNumber])
+  @@map("academic_semesters")
+}
+
+// ----------------------------------------------------------------------------- 6. CourseEnrollment
+
+model CourseEnrollment {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId  String           @map("student_id") @db.Uuid
+  courseId   String           @map("course_id") @db.Uuid
+  semesterId String           @map("semester_id") @db.Uuid
+  section    String           @default("A") @db.VarChar(16) // decision D-20: needed for correct eligibility
+  status     EnrollmentStatus @default(ENROLLED)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  student  StudentProfile   @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  course   Course           @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  semester AcademicSemester @relation(fields: [semesterId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, courseId, semesterId])
+  @@index([courseId, semesterId, section])
+  @@index([studentId, semesterId])
+  @@map("course_enrollments")
+}
+
+// ----------------------------------------------------------------------------- 7. InstructorCourseAssignment
+// A "course offering" = (course, semester, section) taught by an instructor. Forms attach here.
+
+model InstructorCourseAssignment {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  instructorId String   @map("instructor_id") @db.Uuid
+  courseId     String   @map("course_id") @db.Uuid
+  semesterId   String   @map("semester_id") @db.Uuid
+  section      String   @default("A") @db.VarChar(16)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  instructor InstructorProfile @relation(fields: [instructorId], references: [userId], onDelete: Restrict)
+  course     Course            @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  semester   AcademicSemester  @relation(fields: [semesterId], references: [id], onDelete: Restrict)
+  forms      FeedbackForm[]
+
+  @@unique([instructorId, courseId, semesterId, section])
+  @@index([courseId, semesterId, section])
+  @@index([instructorId, semesterId])
+  @@map("instructor_course_assignments")
+}
+
+// ----------------------------------------------------------------------------- 9. FeedbackForm
+
+model FeedbackForm {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assignmentId  String     @map("assignment_id") @db.Uuid
+  title         String     @db.VarChar(160)
+  description   String?    @db.VarChar(1000)
+  status        FormStatus @default(DRAFT)
+  opensAt       DateTime?  @map("opens_at") @db.Timestamptz(3)
+  closesAt      DateTime?  @map("closes_at") @db.Timestamptz(3) // the deadline; required once ACTIVE
+  eligibleCount Int?       @map("eligible_count") // snapshot set at close so eligibility rows can be purged
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  assignment    InstructorCourseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  questions     FeedbackQuestion[]
+  eligibilities FeedbackEligibility[]
+  submissions   FeedbackSubmission[]
+  comments      FeedbackComment[]
+
+  @@index([assignmentId])
+  @@index([status, closesAt])
+  @@map("feedback_forms")
+}
+
+// ----------------------------------------------------------------------------- 10. FeedbackQuestion
+
+model FeedbackQuestion {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  formId        String           @map("form_id") @db.Uuid
+  category      QuestionCategory
+  type          QuestionType
+  prompt        String           @db.VarChar(500)
+  isRequired    Boolean          @default(true) @map("is_required")
+  position      Int              // app-managed ordering (no unique constraint, so reordering is simple)
+  scaleMin      Int?             @map("scale_min") @db.SmallInt // rating types only (CHECK in SQL)
+  scaleMax      Int?             @map("scale_max") @db.SmallInt
+  maxSelections Int?             @map("max_selections") @db.SmallInt // MULTIPLE_SELECTION only (CHECK in SQL)
+  comparisonKey String?          @map("comparison_key") @db.VarChar(64) // same key => comparable across forms
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  form     FeedbackForm      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  options  FeedbackOption[]
+  answers  FeedbackAnswer[]
+  comments FeedbackComment[]
+
+  @@index([formId, position])
+  @@index([comparisonKey])
+  @@map("feedback_questions")
+}
+
+// ----------------------------------------------------------------------------- 11. FeedbackOption
+
+model FeedbackOption {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId String @map("question_id") @db.Uuid
+  label      String @db.VarChar(200)
+  position   Int
+
+  question FeedbackQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  FeedbackAnswer[]
+
+  @@unique([questionId, position])
+  @@map("feedback_options")
+}
+
+// ----------------------------------------------------------------------------- 12. FeedbackEligibility
+// IDENTITY SIDE of the anonymity split. Records WHO may submit and whether they did.
+// Deliberately has no completion timestamp, no updatedAt, and no reference to any submission.
+
+model FeedbackEligibility {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId String            @map("student_id") @db.Uuid
+  formId    String            @map("form_id") @db.Uuid
+  status    EligibilityStatus @default(PENDING)
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(3) // creation, not completion
+
+  student StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  form    FeedbackForm   @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, formId]) // duplicate-submission guard (with the conditional UPDATE in submit_feedback)
+  @@index([formId, status])
+  @@index([studentId, status])
+  @@map("feedback_eligibility")
+}
+
+// ----------------------------------------------------------------------------- 13. FeedbackSubmission
+// ANONYMOUS SIDE. No user column. Date only (institution time zone), no time-of-day.
+// Rows are created only by the SECURITY DEFINER function app.submit_feedback().
+
+model FeedbackSubmission {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid // random v4: never time-ordered
+  formId      String   @map("form_id") @db.Uuid
+  submittedOn DateTime @map("submitted_on") @db.Date
+
+  form    FeedbackForm     @relation(fields: [formId], references: [id], onDelete: Restrict)
+  answers FeedbackAnswer[]
+
+  @@index([formId, submittedOn])
+  @@map("feedback_submissions")
+}
+
+// ----------------------------------------------------------------------------- 14. FeedbackAnswer
+// Structured answers only (rating / yes-no / option). Text goes to FeedbackComment.
+// Multiple-selection = one row per selected option. Exactly one value column is set (CHECK in SQL).
+
+model FeedbackAnswer {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  submissionId String   @map("submission_id") @db.Uuid
+  questionId   String   @map("question_id") @db.Uuid
+  optionId     String?  @map("option_id") @db.Uuid
+  ratingValue  Int?     @map("rating_value") @db.SmallInt
+  booleanValue Boolean? @map("boolean_value")
+
+  submission FeedbackSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   FeedbackQuestion   @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  option     FeedbackOption?    @relation(fields: [optionId], references: [id], onDelete: Restrict)
+
+  @@index([submissionId])
+  @@index([questionId, optionId])
+  @@map("feedback_answers")
+}
+
+// ----------------------------------------------------------------------------- 15. FeedbackComment
+// Free text. Linked to form+question, NOT to a submission, so comments cannot be joined to a
+// respondent's rating profile. No timestamp. formId is denormalized for index-friendly filtering.
+
+model FeedbackComment {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  formId     String        @map("form_id") @db.Uuid
+  questionId String        @map("question_id") @db.Uuid
+  body       String        @db.VarChar(2000) // plain text only; rendered as text, never HTML
+  status     CommentStatus @default(VISIBLE)
+
+  form     FeedbackForm     @relation(fields: [formId], references: [id], onDelete: Restrict)
+  question FeedbackQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@index([formId, status])
+  @@map("feedback_comments")
+}
+
+// ----------------------------------------------------------------------------- 16. AuditLog (append-only)
+
+model AuditLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId      String?  @map("actor_id") @db.Uuid // null for system jobs
+  actorRole    Role?    @map("actor_role")
+  action       String   @db.VarChar(64)           // controlled vocabulary in code, e.g. USER_ROLE_CHANGED
+  resourceType String   @map("resource_type") @db.VarChar(48)
+  resourceId   String?  @map("resource_id") @db.VarChar(64)
+  metadata     Json?    @db.JsonB                 // per-action allow-listed keys; never PII, secrets or submission ids
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
+
+// ----------------------------------------------------------------------------- 17. ConsentRecord (append-only)
+// Holds NO guardian name/email. The guardian's email lives only in a short-lived Verification row.
+
+model ConsentRecord {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String        @map("user_id") @db.Uuid
+  type          ConsentType
+  policyVersion String        @map("policy_version") @db.VarChar(32)
+  status        ConsentStatus
+  method        ConsentMethod
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, type, createdAt])
+  @@map("consent_records")
+}
+
+// ----------------------------------------------------------------------------- 18. DataDeletionRequest
+
+model DataDeletionRequest {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String         @map("user_id") @db.Uuid
+  status         DeletionStatus @default(PENDING_CONFIRMATION)
+  reason         String?        @db.VarChar(500)  // optional, requester-supplied
+  resolutionNote String?        @map("resolution_note") @db.VarChar(1000) // admin: retention exceptions, rejection reason
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  completedAt    DateTime?      @map("completed_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("data_deletion_requests")
+}
+
+// ----------------------------------------------------------------------------- supporting: authentication
+// Provisional shapes for Better Auth (decision D-01). Reconcile with `@better-auth/cli generate`.
+// Intentionally omitted: ipAddress, userAgent (data minimization), OAuth token columns (no social login).
+
+model Session {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Account {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  accountId  String   @map("account_id") @db.VarChar(255)
+  providerId String   @map("provider_id") @db.VarChar(64) // "credential" only in v1
+  password   String?  @db.VarChar(512)                    // Argon2id hash (PHC string); never plaintext
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier String   @db.VarChar(255) // purpose + token reference (exact format per library)
+  value      String   @db.VarChar(1024)
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@index([expiresAt])
+  @@map("verifications")
+}
+
+// ----------------------------------------------------------------------------- supporting: settings
+// Registration is NOT a setting: public self-registration is disabled in code (decision D-02, owner-confirmed);
+// accounts exist only when an admin provisions/invites them.
+// Whitelisted keys validated by Zod in code (min_responses, minor_age_threshold, retention periods,
+// institution_timezone, low_participation_threshold ...). Never holds secrets.
+
+model AppSetting {
+  key         String   @id @db.VarChar(64)
+  value       Json     @db.JsonB
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  updatedById String?  @map("updated_by_id") @db.Uuid
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("app_settings")
+}

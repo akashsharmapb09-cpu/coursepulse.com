@@ -1,0 +1,77 @@
+# CoursePulse — Assumptions, Decisions and Open Questions
+
+> Design v0.1 (Phase 2). Items marked **CONFIRM** need an answer from you or the institution before the phase named. Where the master prompt and a decision differ, the difference is listed in §3 so nothing is silently dropped.
+
+## 1. Decision log
+
+| ID | Decision | Rationale / trade-off | Revisit |
+|---|---|---|---|
+| D-01 | **Better Auth** instead of Auth.js | Web search (31 Oct 2026): Auth.js is maintained by the Better Auth team in security-patch-only mode and recommends Better Auth for new projects. Prompt allows "another established solution". Trade-off: smaller track record, several behaviours need a spike (R-10) | Phase 4 spike |
+| D-02 | **Owner-confirmed:** admin-provisioned activation is the default and only mode; **public self-registration is disabled** (no sign-up page/endpoint, not a setting). Admins create or invite students and instructors (single/CSV) and manage activation (send/resend/revoke invitation, suspend/reactivate); users activate via emailed single-use link; admins never activate accounts or set passwords for users | Binds identity to roster/enrollment, removes abuse surface, simplifies enumeration defence. Trade-off: admin workload; open registration is a documented future option only | — (closed) |
+| D-03 | One role per user; STUDENT role immutable; INSTRUCTOR↔ADMIN changes only | Avoids orphaned profiles and role-mixing leaks (someone who both studies and teaches would need two accounts) | — |
+| D-04 | "Course offering" = (course, semester, section) represented by `InstructorCourseAssignment`; forms attach to it | Gives correct semester trends and per-instructor evaluation without extra entities | — |
+| D-05 | Anonymity = logical separation (no link, no completion time, DATE-only, comments decoupled, `void` submit function), **not** cryptographic | Strongest design that stays simple; DBA-level correlation remains (R-01) and is disclosed | Future: anonymous credentials |
+| D-06 | Content released only after form CLOSED and cell-level k ≥ `min_responses` (default 5, floor 3) | Blocks live-averaging and differencing; trade-off: no mid-term live results for instructors | CONFIRM k |
+| D-07 | Admins see participation **counts**, not who has not responded | Prevents pressuring/identifying non-responders; trade-off: reminders must be automated | — |
+| D-08 | Students see submission **status** only, never their answers; no edit/withdraw after submit | Answers are deliberately unlinkable; matches "view feedback submission history" at the status level | CONFIRM wording |
+| D-09 | Three runtime DB roles (`cp_app`, `cp_auth`, `cp_maint`) + owner; privileged writes only via `SECURITY DEFINER` functions; only `app.user_id` is trusted input, role derived in DB | Limits blast radius; RLS cannot defend against a fully compromised app (R-03) | Phase 5 |
+| D-10 | API-first Route Handlers; **no Server Actions in v1**; same-origin only (no CORS) | One CSRF/rate-limit/error pipeline; trade-off: slightly more boilerplate than Actions | — |
+| D-11 | Managed PostgreSQL (Neon or Supabase **as Postgres only**; Data API disabled) | RLS + roles work on both; avoids a second auth system | CONFIRM provider |
+| D-12 | No persistent file storage in v1; roster CSV parsed in memory; reports streamed | Eliminates upload/bucket attack surface | — |
+| D-13 | Redis-backed rate limiting + Turnstile on selected public forms | Serverless needs shared counters; Turnstile is privacy-leaning; neither relied on alone | CONFIRM provider |
+| D-14 | No AI/LLM features; insights = deterministic term frequency and rating buckets | Avoids prompt-injection surface and false "AI" claims; brief forbids unrequested AI | — |
+| D-15 | Cookieless analytics provider behind consent; event allow-list | Meets consent + minimization; provider swappable via `lib/analytics` | CONFIRM provider |
+| D-16 | Cookie-consent choice stored in a first-party cookie, not the database | Avoids storing consent identifiers server-side; trade-off: no server-side proof of consent | Legal review |
+| D-17 | Email via provider abstraction (default Resend); no tracking pixels | Needed for activation/reset | CONFIRM provider |
+| D-18 | **Owner-confirmed, with one design addition.** `SINGLE_CHOICE` = exactly one answer; `MULTIPLE_CHOICE` = one or more answers (no upper bound); the brief's eighth type `MULTIPLE_SELECTION` is kept so no required type is dropped and is defined as one or more answers **up to a required `maxSelections`** ("choose up to N"). Adds one nullable column `feedback_questions.max_selections` (no personal data) | Keeps all 8 brief types distinct and testable. The `MULTIPLE_SELECTION` definition is my proposal, since the brief does not define it — **CONFIRM** or tell me to drop it | Phase 7 |
+| D-19 | Cross-scale comparison normalizes to 0–100; comparison only across equal `comparisonKey`; `n` always shown | Honest comparisons; prompt: "compatible questions and scales, disclose response counts" | — |
+| D-20 | `section` column on enrollment and assignment (default "A") | Without it, students in multi-section courses get the wrong forms; remove if the institution has no sections | CONFIRM |
+| D-21 | Defaults: ADMIN session 8 h; others 7 d sliding; eligibility purge 180 d after deadline; audit 2 y; feedback 5 y; deletion-request records 2 y; consent records 1 y after anonymization; activation link 72 h, reset 1 h, guardian 7 d | Reasonable starting points, not legal advice | CONFIRM before P15 |
+| D-22 | Users are never hard-deleted; anonymized in place (tombstone) | Keeps audit/consent FK integrity while removing personal data | — |
+| D-23 | Admin MFA (TOTP) recommended for v1 | Highest-privilege role; not required by the brief | CONFIRM |
+| D-24 | Nonce-based CSP for authenticated app; public-page strategy decided by measurement | Security vs LCP conflict (R-11) | Phase 14/17 |
+| D-25 | UUID v4 primary keys everywhere (DB-generated) | Random ids avoid time-ordering of anonymous rows | — |
+
+## 2. Assumptions
+
+1. Single institution (no multi-tenancy). Students, instructors and admins are known to the institution before they use the system.
+2. The institution provides a roster (student number, name, institutional email, course enrollments) and instructor assignments.
+3. The portal is **free**; no payments exist. The Refund Policy page will state that no paid services or refundable transactions are offered. Revisit if that changes.
+4. No contact phone/email/address is invented anywhere. Footer, Contact and `security.txt` use institution-supplied values stored in configuration; until supplied, those elements are omitted rather than faked.
+5. The landing headline, sub-headline, CTAs and palette are exactly as in the brief.
+6. Instructor "export authorized course reports" means reports for assigned offerings that satisfy the release rules.
+7. "Practice" data (seed) exists only in local/preview environments and is labelled as demo data.
+8. Default minimum cohort `k = 5`; "participation low" alert threshold default 40% within 3 days of deadline (admin-configurable).
+9. All text is English in v1; UI strings are structured for later i18n.
+10. Browser support: current evergreen browsers; WCAG 2.2 AA target.
+
+## 3. Deliberate differences from the master prompt (so nothing is silently dropped)
+
+| Master prompt | Design | Why |
+|---|---|---|
+| "Auth.js or another established solution" | Better Auth | D-01 |
+| "Registration where permitted" | Self-registration is **not permitted** (owner decision); accounts are admin-created/invited and activated by the user. The brief's `register/` route is replaced by an `activate` page | D-02 |
+| "Server Actions where appropriate" | None in v1 | D-10 |
+| 18 core entities | 18 + 4 supporting (Session, Account, Verification, AppSetting) | Authentication library and admin settings need storage; none contain feedback or extra personal data |
+| "View feedback submission history" | Status history (form, course, semester, submitted/not) without answers | D-08, anonymity |
+| "Administrators … compare courses, generate reports" | Allowed, but content only after close and above threshold; no participation roster | D-06, D-07 |
+| "Row-Level Security where supported" | RLS + privilege separation + definer functions; honest limits documented | D-09, R-03 |
+| "Private storage" | Not applicable in v1 | D-12 |
+| "Webhook security" | Not applicable in v1 | no webhooks |
+| "Prompt injection" | Not applicable (no AI) | D-14 |
+| "Consent records where needed" | DB records for terms/privacy/guardian consent; cookie consent first-party cookie | D-16 |
+| "Instructors can compare historical performance / filter by date" | Instructors filter content by year/semester/course; date ranges only for counts | R-04 differencing |
+| "Distributed rate limiting; CAPTCHA" | Redis + Turnstile (no CAPTCHA on authenticated feedback submit; honeypot + limits instead) | usability, privacy |
+
+## 4. Open questions (please answer or say "use defaults")
+
+1. **Institution time zone** (needed for deadlines and `submittedOn`). No default is assumed.
+2. **Minors:** does the institution admit under-18 students? Which age threshold and which consent route (guardian email link vs institution-held consent)?
+3. **Sections:** do courses have sections/multiple instructors per offering? (D-20)
+4. **k-threshold and retention periods** — accept the defaults in D-21?
+5. **Admin MFA** as a v1 requirement? (D-23)
+6. **Providers:** Postgres (Neon vs Supabase-as-Postgres), email (Resend or SMTP), Redis (Upstash), analytics (Plausible or other)?
+7. ~~Choice-question semantics~~ — **resolved (D-18):** single-choice = exactly one, multiple-choice = several. *Still open:* confirm my definition of `MULTIPLE_SELECTION` ("up to N").
+8. ~~Registration~~ — **resolved (D-02):** admin-provisioned activation only; public self-registration disabled.
+9. **Institution contact details** for the footer/Contact/Support pages and a security contact (to be supplied, not invented).
+10. **Domain name** (for canonical URLs, Origin allow-list, email links).

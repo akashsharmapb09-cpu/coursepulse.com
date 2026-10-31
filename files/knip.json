@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/instrumentation.ts",
+    "src/proxy.ts",
+    "scripts/*.mjs",
+    "tests/**/*.{test,spec}.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "tests/**/*.ts",
+    "scripts/**/*.mjs"
+  ],
+  "ignoreDependencies": [
+    "tailwindcss",
+    "@tailwindcss/postcss",
+    "lefthook",
+    "react-dom"
+  ]
+}
