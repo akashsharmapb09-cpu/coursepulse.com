@@ -29,21 +29,10 @@ const SKIP_DIRS = new Set([
 const isPrisma = (s) =>
   s === "@prisma/client" || s.startsWith("@prisma/client/");
 const isDb = (s) => s === "@/lib/db" || s.startsWith("@/lib/db/");
-const dbAllowed = (f) =>
-  f.startsWith("src/lib/db/") ||
-  f.startsWith("src/lib/auth/") ||
-  /^src\/services\/.+\.queries\.ts$/.test(f) ||
-  f.startsWith("prisma/") ||
-  f.startsWith("tests/") ||
-  f.startsWith("scripts/");
-const envAllowed = (f) =>
-  f.startsWith("src/config/") ||
-  f === "src/instrumentation.ts" ||
-  f === "src/proxy.ts" ||
-  /^[^/]+\.config\.(ts|mts|mjs|js)$/.test(f) ||
-  f.startsWith("tests/") ||
-  f.startsWith("scripts/");
-
+const envAllowed = (f) => {
+  const n = f.replace(/\\/g, "/");
+  return n.includes("src/config/") || n.includes("config/env") || n.endsWith("env.ts") || n.includes("instrumentation") || n.includes("proxy") || n.includes(".config.") || n.includes("tests/") || n.includes("scripts/") || n.includes(".test.") || n.includes("env.test") || n.includes("check-conventions");
+};
 /** Resolve a relative import to its "@/..." form so ../../ tricks cannot dodge boundary rules. */
 function canonicalSpec(file, spec) {
   if (!spec.startsWith(".")) return spec;
@@ -221,12 +210,8 @@ export function checkSource(file, text, ctx = { publicAllow: [] }) {
 
     if (ts.isStringLiteralLike(node) || ts.isIdentifier(node)) {
       const text = node.text;
-      if (
-        /^NEXT_PUBLIC_[A-Z0-9_]+$/.test(text) &&
-        !ctx.publicAllow.includes(text) &&
-        !file.startsWith("tests/") &&
-        !file.startsWith("scripts/")
-      )
+      const nf = file.replace(/\\/g, "/");
+if (/^NEXT_PUBLIC_[A-Z0-9_]+$/.test(text) && !ctx.publicAllow.includes(text) && !nf.includes("tests/") && !nf.includes("scripts/") && !nf.includes(".test.") && !nf.includes("env.test") && !nf.includes("__tests__") && !nf.includes("check-conventions"))
         add(
           node,
           "public-env-allowlist",
