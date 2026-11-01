@@ -5,9 +5,6 @@ lefthook: cd files && pnpm exec lefthook
 pre-commit:
   commands:
     gitleaks:
-      run: |
-        if ! command -v gitleaks >/dev/null 2>&1; then
-          echo "Gitleaks is required for commits. Install it and add it to PATH." >&2
-          exit 1
-        fi
-        git -c core.autocrlf=false diff --cached --no-ext-diff --no-textconv HEAD | gitleaks stdin --redact --no-banner
+      # Keep this as a single line: Lefthook 1.13.6 has a Windows bug with
+      # multi-line shell commands. Gitleaks must be installed and on PATH.
+      run: git -c core.autocrlf=false diff --cached --no-ext-diff --no-textconv HEAD | gitleaks stdin --redact --no-banner
