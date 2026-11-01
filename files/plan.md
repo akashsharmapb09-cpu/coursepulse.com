@@ -4,12 +4,12 @@
 
 Legend: ☐ not started · ◐ in progress · ☑ done. Spikes are time-boxed experiments to retire risks early.
 
-| # | Phase | Status |
-| --- | --- | --- |
-| 1 | Existing project inspection | ☑ N/A — greenfield repository; baseline audit recorded |
-| 2 | PRD, architecture, DB design, plan | ☑ Design baseline documented; institution-specific open decisions remain |
-| 3 | Project setup and environment | ◐ Foundation and CI implemented; local pre-commit hook installation still needs workstation verification |
-| 4–20 | See below | ☐ Not started |
+| #    | Phase                              | Status                                                      |
+| ---- | ---------------------------------- | ----------------------------------------------------------- |
+| 1    | Existing project inspection        | ☑ N/A — greenfield; baseline audit recorded                 |
+| 2    | PRD, architecture, DB design, plan | ☑ Design baseline recorded; institutional decisions remain |
+| 3    | Project setup and environment      | ◐ CI/setup delivered; local hook verification pending       |
+| 4–20 | See below                          | ☐ Not started                                               |
 
 ## Phase 3 — Project setup and environment
 

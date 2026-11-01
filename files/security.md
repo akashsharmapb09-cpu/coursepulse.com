@@ -2,9 +2,6 @@
 
 > **Status:** the threat model and controls below remain design guidance unless explicitly marked as implemented. The Phase 3 baseline currently implemented and covered by tests consists of startup environment validation, nonce-based CSP, same-origin checks for state-changing API requests, private-route no-index/no-store headers, baseline response headers, the health endpoint and repository secret scanning. Authentication, authorization, database/RLS, rate limiting, anonymous submission and most operational controls are **not implemented**. This document makes no claim of legal compliance, absolute anonymity or absolute defence against any attack class.
 
-
-> **Status: Phase 2 design.** Every control below is **DESIGNED**, not implemented and not verified. No checklist item may be marked PASS until it has implementation _and_ test evidence (see §16). This document makes no claim of legal compliance, absolute anonymity or absolute defence against any attack class.
-
 ## 1. Purpose and scope
 
 Defines the security and privacy controls for CoursePulse: authentication, authorization, anonymous-feedback protection, API, browser, database, secrets, supply chain and operations. Companion documents: [architecture.md](architecture.md), [docs/api-specification.md](docs/api-specification.md), [docs/data-inventory.md](docs/data-inventory.md), [prisma/sql/001_rls_and_permissions.draft.sql](prisma/sql/001_rls_and_permissions.draft.sql).

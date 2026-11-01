@@ -37,17 +37,17 @@ The `schema.prisma` file is a **design draft only**. It has not been validated o
 
 ## Repository documentation
 
-| File | Purpose |
-| --- | --- |
-| [PRD.md](PRD.md) | Product requirements and user journeys |
-| [architecture.md](architecture.md) | Architecture, data model and anonymity design |
-| [security.md](security.md) | Security design, current baseline and remaining risks |
-| [api-specification.md](api-specification.md) | Planned API contracts |
-| [data-inventory.md](data-inventory.md) | Data minimization and field inventory |
-| [assumptions-and-decisions.md](assumptions-and-decisions.md) | Decisions, assumptions and open questions |
-| [schema.prisma](schema.prisma) | Draft database schema; not applied |
-| [plan.md](plan.md) | Phase roadmap and exit criteria |
-| [AGENTS.md](AGENTS.md) · [codestyle.md](codestyle.md) | Engineering and coding rules |
+| File                                                         | Purpose                                               |
+| ------------------------------------------------------------ | ----------------------------------------------------- |
+| [PRD.md](PRD.md)                                             | Product requirements and user journeys                |
+| [architecture.md](architecture.md)                           | Architecture, data model and anonymity design         |
+| [security.md](security.md)                                   | Security design, current baseline and remaining risks |
+| [api-specification.md](api-specification.md)                 | Planned API contracts                                 |
+| [data-inventory.md](data-inventory.md)                       | Data minimization and field inventory                 |
+| [assumptions-and-decisions.md](assumptions-and-decisions.md) | Decisions, assumptions and open questions             |
+| [schema.prisma](schema.prisma)                               | Draft database schema; not applied                    |
+| [plan.md](plan.md)                                           | Phase roadmap and exit criteria                       |
+| [AGENTS.md](AGENTS.md) · [codestyle.md](codestyle.md)        | Engineering and coding rules                          |
 
 ## Prerequisites
 
