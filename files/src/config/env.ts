@@ -1,10 +1,15 @@
 import "server-only";
 import { z } from "zod";
-import { findDisallowedPublicVars, findProductionProblems, findSecretValueReuse, type EnvRecord } from "./env-guards";
+import {
+  findDisallowedPublicVars,
+  findProductionProblems,
+  findSecretValueReuse,
+  type EnvRecord,
+} from "./env-guards";
 
 /**
  * Validated server environment. Fails fast (at boot via instrumentation.ts) with a message that lists variable
- * NAMES and rule descriptions only — never values (security.md §7).
+ * NAMES and rule descriptions only â€” never values (security.md Â§7).
  *
  * Phase 3 note: database/auth/third-party variables are optional outside production because no code consumes
  * them yet; each later phase tightens its own variables to "required" in the same change that starts using them.
@@ -27,9 +32,18 @@ const serverSchema = z.object({
   DATABASE_URL_MAINT: optionalString,
   DATABASE_URL_MIGRATE: optionalString,
 
-  AUTH_SECRET: z.string().min(32, "must be at least 32 characters (generate with: openssl rand -base64 32)").optional(),
+  AUTH_SECRET: z
+    .string()
+    .min(
+      32,
+      "must be at least 32 characters (generate with: openssl rand -base64 32)",
+    )
+    .optional(),
   CRON_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
-  RATE_LIMIT_KEY_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
+  RATE_LIMIT_KEY_SECRET: z
+    .string()
+    .min(32, "must be at least 32 characters")
+    .optional(),
 
   EMAIL_API_KEY: optionalString,
   EMAIL_FROM: optionalString,
@@ -48,7 +62,9 @@ const REQUIRED_IN_PRODUCTION = [
   "RATE_LIMIT_KEY_SECRET",
 ] as const;
 
-export type ServerEnv = z.infer<typeof serverSchema> & { TRUSTED_ORIGIN_LIST: string[] };
+export type ServerEnv = z.infer<typeof serverSchema> & {
+  TRUSTED_ORIGIN_LIST: string[];
+};
 
 export function parseServerEnv(raw: EnvRecord): ServerEnv {
   const problems: string[] = [];
@@ -67,14 +83,22 @@ export function parseServerEnv(raw: EnvRecord): ServerEnv {
     }
   }
   problems.push(...findProductionProblems(raw));
-  problems.push(...findDisallowedPublicVars(raw).map((n) => `${n}: not on the public-variable allow-list`));
+  problems.push(
+    ...findDisallowedPublicVars(raw).map(
+      (n) => `${n}: not on the public-variable allow-list`,
+    ),
+  );
   problems.push(...findSecretValueReuse(raw));
 
   if (problems.length > 0 || !parsed.success) {
-    throw new Error(`Invalid environment configuration:\n - ${problems.join("\n - ")}`);
+    throw new Error(
+      `Invalid environment configuration:\n - ${problems.join("\n - ")}`,
+    );
   }
 
-  const trustedList = parsed.data.TRUSTED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean);
+  const trustedList = parsed.data.TRUSTED_ORIGINS.split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
   return { ...parsed.data, TRUSTED_ORIGIN_LIST: trustedList };
 }
 

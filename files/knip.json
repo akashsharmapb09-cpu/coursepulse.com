@@ -1,20 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": [
-    "src/instrumentation.ts",
-    "src/proxy.ts",
-    "scripts/*.mjs",
-    "tests/**/*.{test,spec}.ts"
-  ],
+  "ignoreExportsUsedInFile": true,
   "project": [
-    "src/**/*.{ts,tsx}",
-    "tests/**/*.ts",
-    "scripts/**/*.mjs"
-  ],
-  "ignoreDependencies": [
-    "tailwindcss",
-    "@tailwindcss/postcss",
-    "lefthook",
-    "react-dom"
+    "src/**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}",
+    "tests/**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}",
+    "*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}"
   ]
 }

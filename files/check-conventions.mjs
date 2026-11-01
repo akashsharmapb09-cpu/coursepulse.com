@@ -31,7 +31,19 @@ const isPrisma = (s) =>
 const isDb = (s) => s === "@/lib/db" || s.startsWith("@/lib/db/");
 const envAllowed = (f) => {
   const n = f.replace(/\\/g, "/");
-  return n.includes("src/config/") || n.includes("config/env") || n.endsWith("env.ts") || n.includes("instrumentation") || n.includes("proxy") || n.includes(".config.") || n.includes("tests/") || n.includes("scripts/") || n.includes(".test.") || n.includes("env.test") || n.includes("check-conventions");
+  return (
+    n.includes("src/config/") ||
+    n.includes("config/env") ||
+    n.endsWith("env.ts") ||
+    n.includes("instrumentation") ||
+    n.includes("proxy") ||
+    n.includes(".config.") ||
+    n.includes("tests/") ||
+    n.includes("scripts/") ||
+    n.includes(".test.") ||
+    n.includes("env.test") ||
+    n.includes("check-conventions")
+  );
 };
 /** Resolve a relative import to its "@/..." form so ../../ tricks cannot dodge boundary rules. */
 function canonicalSpec(file, spec) {
@@ -211,7 +223,16 @@ export function checkSource(file, text, ctx = { publicAllow: [] }) {
     if (ts.isStringLiteralLike(node) || ts.isIdentifier(node)) {
       const text = node.text;
       const nf = file.replace(/\\/g, "/");
-if (/^NEXT_PUBLIC_[A-Z0-9_]+$/.test(text) && !ctx.publicAllow.includes(text) && !nf.includes("tests/") && !nf.includes("scripts/") && !nf.includes(".test.") && !nf.includes("env.test") && !nf.includes("__tests__") && !nf.includes("check-conventions"))
+      if (
+        /^NEXT_PUBLIC_[A-Z0-9_]+$/.test(text) &&
+        !ctx.publicAllow.includes(text) &&
+        !nf.includes("tests/") &&
+        !nf.includes("scripts/") &&
+        !nf.includes(".test.") &&
+        !nf.includes("env.test") &&
+        !nf.includes("__tests__") &&
+        !nf.includes("check-conventions")
+      )
         add(
           node,
           "public-env-allowlist",
@@ -411,14 +432,14 @@ const isMain =
 if (isMain) {
   if (process.argv.includes("--self-test")) selfTest();
   else {
-      const { violations, scanned, publicAllow } = scan(process.cwd());
-  for (const v of violations) {
-    console.error(`${v.file}:${v.line} [${v.rule}] ${v.msg}`);
+    const { violations, scanned, publicAllow } = scan(process.cwd());
+    for (const v of violations) {
+      console.error(`${v.file}:${v.line} [${v.rule}] ${v.msg}`);
+    }
+    // eslint-disable-next-line no-console
+    console.log(
+      `conventions: scanned ${scanned} files, public allow-list ${publicAllow.length} names, ${violations.length} violations`,
+    );
+    process.exit(violations.length ? 1 : 0);
   }
-  // eslint-disable-next-line no-console
-  console.log(
-    `conventions: scanned ${scanned} files, public allow-list ${publicAllow.length} names, ${violations.length} violations`
-  );
-  process.exit(violations.length ? 1 : 0);
- }
 }

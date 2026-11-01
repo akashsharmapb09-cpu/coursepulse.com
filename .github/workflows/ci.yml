@@ -1,0 +1,176 @@
+﻿name: CoursePulse CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coursepulse-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: files
+
+jobs:
+  quality:
+    name: Quality, tests and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      SITE_URL: "https://localhost:3000"
+      DATABASE_URL: "postgresql://ci_app:ci-only-placeholder@127.0.0.1:5432/coursepulse?sslmode=verify-full"
+      DATABASE_URL_AUTH: "postgresql://ci_auth:ci-only-placeholder@127.0.0.1:5432/coursepulse?sslmode=verify-full"
+      DATABASE_URL_MAINT: "postgresql://ci_maint:ci-only-placeholder@127.0.0.1:5432/coursepulse?sslmode=verify-full"
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.16.1
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: files/pnpm-lock.yaml
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Conventions
+        run: pnpm check:conventions
+
+      - name: TypeScript
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Security tests
+        run: pnpm test:security
+
+      - name: Unused code and dependency checks
+        run: pnpm check:unused
+
+      - name: Dependency audit
+        run: pnpm audit:deps
+
+      - name: Generate temporary CI-only application secrets
+        shell: bash
+        run: |
+          printf 'AUTH_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
+          printf 'CRON_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
+          printf 'RATE_LIMIT_KEY_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
+
+      - name: Production build
+        run: pnpm build
+
+  e2e:
+    name: Playwright responsive E2E
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      CI: "true"
+      SITE_URL: "https://localhost:3000"
+      DATABASE_URL: "postgresql://ci_app:ci-only-placeholder@127.0.0.1:5432/coursepulse?sslmode=verify-full"
+      DATABASE_URL_AUTH: "postgresql://ci_auth:ci-only-placeholder@127.0.0.1:5432/coursepulse?sslmode=verify-full"
+      DATABASE_URL_MAINT: "postgresql://ci_maint:ci-only-placeholder@127.0.0.1:5432/coursepulse?sslmode=verify-full"
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.16.1
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: files/pnpm-lock.yaml
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate temporary CI-only application secrets
+        shell: bash
+        run: |
+          printf 'AUTH_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
+          printf 'CRON_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
+          printf 'RATE_LIMIT_KEY_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
+
+      - name: Production build for E2E
+        run: pnpm build
+
+      - name: Install Playwright Chromium and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run responsive E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coursepulse-playwright-report
+          path: files/playwright-report/
+          retention-days: 7
+
+  secret-scan:
+    name: Gitleaks full-history scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Scan repository history and changes
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  dependency-review:
+    name: Pull request dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Review introduced dependencies
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: never

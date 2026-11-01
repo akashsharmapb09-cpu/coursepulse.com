@@ -1,6 +1,6 @@
 # CoursePulse — Smart Course Feedback & Analytics Portal
 
-> **Project status: Phase 2 (system design) delivered for review. There is no application code yet.** Commands and file paths below describe the *planned* workflow and will be created in Phase 3 onward; do not expect them to run today.
+> **Project status: Phase 2 (system design) delivered for review. There is no application code yet.** Commands and file paths below describe the _planned_ workflow and will be created in Phase 3 onward; do not expect them to run today.
 
 CoursePulse collects structured, anonymous student feedback and turns it into course- and instructor-level insight, with separate experiences for **students**, **instructors** and **administrators**. Privacy is the central design constraint: student identity and feedback answers are stored separately and cannot be joined, and results are shown only after a form closes and only in aggregate above a minimum group size. (Anonymity here is logical separation, not cryptographic; limits are documented in `security.md`.)
 
@@ -14,17 +14,17 @@ Next.js (App Router) · React · TypeScript (strict) · Tailwind CSS · shadcn/u
 
 ## Documentation map
 
-| File | Purpose |
-|---|---|
-| [PRD.md](PRD.md) | requirements, personas, journeys, metrics |
-| [architecture.md](architecture.md) | system and data architecture, ERD, anonymity design, deletion rules |
-| [security.md](security.md) | security architecture, RLS matrix, risk register |
-| [docs/api-specification.md](docs/api-specification.md) | endpoints and permissions |
-| [docs/data-inventory.md](docs/data-inventory.md) | field-by-field data minimization record |
-| [docs/assumptions-and-decisions.md](docs/assumptions-and-decisions.md) | decisions, assumptions, open questions |
-| [prisma/schema.prisma](prisma/schema.prisma) | draft schema (22 models) |
-| [prisma/sql/001_rls_and_permissions.draft.sql](prisma/sql/001_rls_and_permissions.draft.sql) | draft roles, RLS, constraints, anonymity functions (untested) |
-| [codestyle.md](codestyle.md) · [AGENTS.md](AGENTS.md) · [plan.md](plan.md) | conventions, agent rules, roadmap |
+| File                                                                                         | Purpose                                                             |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [PRD.md](PRD.md)                                                                             | requirements, personas, journeys, metrics                           |
+| [architecture.md](architecture.md)                                                           | system and data architecture, ERD, anonymity design, deletion rules |
+| [security.md](security.md)                                                                   | security architecture, RLS matrix, risk register                    |
+| [docs/api-specification.md](docs/api-specification.md)                                       | endpoints and permissions                                           |
+| [docs/data-inventory.md](docs/data-inventory.md)                                             | field-by-field data minimization record                             |
+| [docs/assumptions-and-decisions.md](docs/assumptions-and-decisions.md)                       | decisions, assumptions, open questions                              |
+| [prisma/schema.prisma](prisma/schema.prisma)                                                 | draft schema (22 models)                                            |
+| [prisma/sql/001_rls_and_permissions.draft.sql](prisma/sql/001_rls_and_permissions.draft.sql) | draft roles, RLS, constraints, anonymity functions (untested)       |
+| [codestyle.md](codestyle.md) · [AGENTS.md](AGENTS.md) · [plan.md](plan.md)                   | conventions, agent rules, roadmap                                   |
 
 ## Prerequisites (planned)
 
@@ -44,6 +44,7 @@ pnpm db:migrate         # Prisma migrations + reviewed raw-SQL migrations (roles
 pnpm db:seed            # DEMO data only (labelled), refuses to run in production
 pnpm admin:bootstrap -- --email you@example.edu   # first admin; emails an activation link; no default credentials
 ```
+
 Runtime roles (`cp_app`, `cp_auth`, `cp_maint`) never own tables and are created by the migration; their passwords are supplied through your secret manager.
 
 ## Development workflow (planned)
@@ -56,6 +57,7 @@ pnpm test:security      # rls, idor, csrf, anonymity, xss, headers, rate-limit
 pnpm test:e2e           # Playwright (role flows, links/buttons crawl, mobile viewports)
 pnpm build && pnpm start
 ```
+
 Work proceeds phase by phase per [plan.md](plan.md); a change is done only when lint, type check, tests, security tests and the production build pass and docs are updated ([AGENTS.md](AGENTS.md)).
 
 ## Deployment (planned)
@@ -72,10 +74,10 @@ Read [security.md](security.md) and [AGENTS.md §4](AGENTS.md). Report vulnerabi
 
 ## Troubleshooting (planned; extended as the system is built)
 
-* *Boot fails with env validation error* → compare `.env.local` with `.env.example`; all required variables must be set.
-* *Queries return no rows locally* → authenticated queries must run inside `withRls`; confirm the connection uses `cp_app`, not the owner.
-* *Migration drift complaints from Prisma* → raw-SQL objects are managed by the reviewed SQL migrations (see R-09); do not auto-accept drops.
-* *Rate limiting blocks local testing* → use the documented development override (disabled in production builds).
+- _Boot fails with env validation error_ → compare `.env.local` with `.env.example`; all required variables must be set.
+- _Queries return no rows locally_ → authenticated queries must run inside `withRls`; confirm the connection uses `cp_app`, not the owner.
+- _Migration drift complaints from Prisma_ → raw-SQL objects are managed by the reviewed SQL migrations (see R-09); do not auto-accept drops.
+- _Rate limiting blocks local testing_ → use the documented development override (disabled in production builds).
 
 ## Licence and legal
 

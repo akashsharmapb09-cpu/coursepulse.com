@@ -1,17 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { HSTS_HEADER, STATIC_SECURITY_HEADERS, isPrivatePath, privateRouteHeaders } from "@/lib/security/headers";
+import {
+  HSTS_HEADER,
+  STATIC_SECURITY_HEADERS,
+  isPrivatePath,
+  privateRouteHeaders,
+} from "@/lib/security/headers";
 
 describe("isPrivatePath", () => {
   it("marks role areas, the API and auth pages as private", () => {
-    for (const p of ["/admin", "/admin/users", "/student/dashboard", "/instructor/analytics", "/api/v1/me", "/login", "/activate", "/forgot-password", "/reset-password", "/consent/guardian"]) {
+    for (const p of [
+      "/admin",
+      "/admin/users",
+      "/student/dashboard",
+      "/instructor/analytics",
+      "/api/v1/me",
+      "/login",
+      "/activate",
+      "/forgot-password",
+      "/reset-password",
+      "/consent/guardian",
+    ]) {
       expect(isPrivatePath(p)).toBe(true);
     }
   });
   it("is case-, slash- and trailing-slash-insensitive", () => {
-    for (const p of ["/ADMIN", "//admin//users", "/Admin/", "/API/v1/health"]) expect(isPrivatePath(p)).toBe(true);
+    for (const p of ["/ADMIN", "//admin//users", "/Admin/", "/API/v1/health"])
+      expect(isPrivatePath(p)).toBe(true);
   });
   it("keeps public pages indexable and respects path boundaries", () => {
-    for (const p of ["/", "/about", "/features", "/contact", "/support", "/privacy", "/terms", "/refund-policy", "/administrators-guide", "/apiary"]) {
+    for (const p of [
+      "/",
+      "/about",
+      "/features",
+      "/contact",
+      "/support",
+      "/privacy",
+      "/terms",
+      "/refund-policy",
+      "/administrators-guide",
+      "/apiary",
+    ]) {
       expect(isPrivatePath(p)).toBe(false);
     }
   });
@@ -28,8 +56,12 @@ describe("privateRouteHeaders", () => {
     expect(h["Referrer-Policy"]).toBeUndefined();
   });
   it("suppresses the Referer on token pages", () => {
-    expect(privateRouteHeaders("/activate")["Referrer-Policy"]).toBe("no-referrer");
-    expect(privateRouteHeaders("/reset-password")["Referrer-Policy"]).toBe("no-referrer");
+    expect(privateRouteHeaders("/activate")["Referrer-Policy"]).toBe(
+      "no-referrer",
+    );
+    expect(privateRouteHeaders("/reset-password")["Referrer-Policy"]).toBe(
+      "no-referrer",
+    );
   });
 });
 

@@ -15,7 +15,8 @@ export const PUBLIC_ENV_ALLOWLIST = [
 ] as const;
 
 const PUBLIC_ALLOWED = new Set<string>(PUBLIC_ENV_ALLOWLIST);
-const SECRET_LIKE = /(SECRET|PASSWORD|TOKEN|PRIVATE|DATABASE|CRON|API_?KEY|CREDENTIAL)/i;
+const SECRET_LIKE =
+  /(SECRET|PASSWORD|TOKEN|PRIVATE|DATABASE|CRON|API_?KEY|CREDENTIAL)/i;
 
 /** Variables whose values must never appear in a public variable or in logs. */
 export const SERVER_SECRET_NAMES = [
@@ -34,8 +35,12 @@ export const SERVER_SECRET_NAMES = [
 /** NEXT_PUBLIC_* names that are not on the allow-list. Secret-looking names are flagged explicitly. */
 export function findDisallowedPublicVars(env: EnvRecord): string[] {
   return Object.keys(env)
-    .filter((name) => name.startsWith("NEXT_PUBLIC_") && !PUBLIC_ALLOWED.has(name))
-    .map((name) => (SECRET_LIKE.test(name) ? `${name} (secret-like name)` : name))
+    .filter(
+      (name) => name.startsWith("NEXT_PUBLIC_") && !PUBLIC_ALLOWED.has(name),
+    )
+    .map((name) =>
+      SECRET_LIKE.test(name) ? `${name} (secret-like name)` : name,
+    )
     .sort();
 }
 
@@ -48,9 +53,15 @@ export function findSecretValueReuse(env: EnvRecord): string[] {
   }
   const leaks: string[] = [];
   for (const [name, value] of Object.entries(env)) {
-    if (!name.startsWith("NEXT_PUBLIC_") || value === undefined || value.length < 8) continue;
+    if (
+      !name.startsWith("NEXT_PUBLIC_") ||
+      value === undefined ||
+      value.length < 8
+    )
+      continue;
     for (const secret of secretValues.keys()) {
-      if (value.includes(secret)) leaks.push(`${name} contains the value of ${secretValues.get(secret)}`);
+      if (value.includes(secret))
+        leaks.push(`${name} contains the value of ${secretValues.get(secret)}`);
     }
   }
   return leaks.sort();
@@ -63,19 +74,40 @@ export function findProductionProblems(env: EnvRecord): string[] {
   if (env["NODE_ENV"] !== "production") return [];
   const problems: string[] = [];
 
-  if (env["DEV_DISABLE_RATE_LIMIT"] === "true") problems.push("DEV_DISABLE_RATE_LIMIT must not be true in production");
-  if (env["DATABASE_URL_MIGRATE"]) problems.push("DATABASE_URL_MIGRATE (owner role) must not be set in the runtime environment");
-  if (!env["SITE_URL"]?.startsWith("https://")) problems.push("SITE_URL must use https in production");
+  if (env["DEV_DISABLE_RATE_LIMIT"] === "true")
+    problems.push("DEV_DISABLE_RATE_LIMIT must not be true in production");
+  if (env["DATABASE_URL_MIGRATE"])
+    problems.push(
+      "DATABASE_URL_MIGRATE (owner role) must not be set in the runtime environment",
+    );
+  if (!env["SITE_URL"]?.startsWith("https://"))
+    problems.push("SITE_URL must use https in production");
 
-  for (const origin of (env["TRUSTED_ORIGINS"] ?? "").split(",").map((o) => o.trim()).filter(Boolean)) {
-    if (!origin.startsWith("https://")) problems.push("TRUSTED_ORIGINS entries must use https in production");
+  for (const origin of (env["TRUSTED_ORIGINS"] ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean)) {
+    if (!origin.startsWith("https://"))
+      problems.push("TRUSTED_ORIGINS entries must use https in production");
   }
-  for (const name of ["DATABASE_URL", "DATABASE_URL_AUTH", "DATABASE_URL_MAINT"] as const) {
+  for (const name of [
+    "DATABASE_URL",
+    "DATABASE_URL_AUTH",
+    "DATABASE_URL_MAINT",
+  ] as const) {
     const url = env[name];
-    if (url && !SSL_MODE.test(url)) problems.push(`${name} must request TLS (sslmode=require or verify-full)`);
+    if (url && !SSL_MODE.test(url))
+      problems.push(
+        `${name} must request TLS (sslmode=require or verify-full)`,
+      );
   }
-  const roleUrls = ["DATABASE_URL", "DATABASE_URL_AUTH", "DATABASE_URL_MAINT"].map((n) => env[n]).filter(Boolean);
-  if (new Set(roleUrls).size !== roleUrls.length) problems.push("database role connection strings must be distinct (cp_app, cp_auth, cp_maint)");
+  const roleUrls = ["DATABASE_URL", "DATABASE_URL_AUTH", "DATABASE_URL_MAINT"]
+    .map((n) => env[n])
+    .filter(Boolean);
+  if (new Set(roleUrls).size !== roleUrls.length)
+    problems.push(
+      "database role connection strings must be distinct (cp_app, cp_auth, cp_maint)",
+    );
 
   return problems;
 }

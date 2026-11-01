@@ -10,8 +10,14 @@ export interface ProblemOptions {
 }
 
 export function problemResponse(options: ProblemOptions): Response {
-  if (!Number.isInteger(options.status) || options.status < 400 || options.status > 599) {
-    throw new RangeError("problem status must be an HTTP error status (400-599)");
+  if (
+    !Number.isInteger(options.status) ||
+    options.status < 400 ||
+    options.status > 599
+  ) {
+    throw new RangeError(
+      "problem status must be an HTTP error status (400-599)",
+    );
   }
   const body = {
     type: "about:blank",
@@ -23,6 +29,9 @@ export function problemResponse(options: ProblemOptions): Response {
   };
   return new Response(JSON.stringify(body), {
     status: options.status,
-    headers: { "Content-Type": "application/problem+json; charset=utf-8", "Cache-Control": "no-store" },
+    headers: {
+      "Content-Type": "application/problem+json; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
   });
 }

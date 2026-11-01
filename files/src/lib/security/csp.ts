@@ -28,14 +28,17 @@ export function generateNonce(): string {
 
 function httpsOrigin(value: string, label: string): string {
   const url = new URL(value); // throws on invalid input
-  if (url.protocol !== "https:") throw new Error(`${label} must be an https origin`);
+  if (url.protocol !== "https:")
+    throw new Error(`${label} must be an https origin`);
   return url.origin;
 }
 
 export function buildCsp(options: CspOptions): string {
   // The nonce and origins are interpolated into a response header: reject anything that could inject directives.
   if (!NONCE_PATTERN.test(options.nonce)) throw new Error("invalid CSP nonce");
-  const analytics = options.analyticsOrigin ? httpsOrigin(options.analyticsOrigin, "analyticsOrigin") : undefined;
+  const analytics = options.analyticsOrigin
+    ? httpsOrigin(options.analyticsOrigin, "analyticsOrigin")
+    : undefined;
 
   const scriptSrc = ["'self'", `'nonce-${options.nonce}'`, "'strict-dynamic'"];
   if (options.turnstile) scriptSrc.push(TURNSTILE_ORIGIN);

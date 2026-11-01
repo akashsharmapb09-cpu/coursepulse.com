@@ -1,0 +1,26 @@
+﻿# Dependencies
+**/node_modules/
+
+# Next.js generated output
+**/.next/
+**/out/
+
+# Test output
+**/test-results/
+**/playwright-report/
+**/playwright/.cache/
+
+# TypeScript generated files
+**/*.tsbuildinfo
+
+# Local environment secrets
+.env
+.env.*
+!.env.example
+/files/.env
+/files/.env.*
+!/files/.env.example
+
+# Local temporary files
+/files/vitest.config.mts.backup
+/-files -- env-guards.ts

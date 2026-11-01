@@ -11,11 +11,11 @@ CoursePulse is a privacy-first course feedback portal for a university. Student 
 
 ## 2. General rules
 
-* Preserve working functionality; make the smallest change that solves the problem; no unnecessary rewrites or dependencies (justify any new package: need, maintenance, size, licence, `pnpm audit` result).
-* Follow `codestyle.md`. Match existing patterns before inventing new ones.
-* Never report something as done unless it is implemented **and** verified by a test or a recorded manual check. Never fabricate results, metrics, test output, contact details, testimonials or statistics.
-* Do not add personal-data fields "just in case". Any new column requires an entry in `docs/data-inventory.md` (why, who can access, retention, sensitivity, deletability) before it lands.
-* Keep documentation consistent: a change to behaviour, roles, API, schema or security updates the affected docs in the same change.
+- Preserve working functionality; make the smallest change that solves the problem; no unnecessary rewrites or dependencies (justify any new package: need, maintenance, size, licence, `pnpm audit` result).
+- Follow `codestyle.md`. Match existing patterns before inventing new ones.
+- Never report something as done unless it is implemented **and** verified by a test or a recorded manual check. Never fabricate results, metrics, test output, contact details, testimonials or statistics.
+- Do not add personal-data fields "just in case". Any new column requires an entry in `docs/data-inventory.md` (why, who can access, retention, sensitivity, deletability) before it lands.
+- Keep documentation consistent: a change to behaviour, roles, API, schema or security updates the affected docs in the same change.
 
 ## 3. Code guidelines
 
@@ -45,6 +45,7 @@ Plan → implement in small steps → write/adjust tests → run checks → revi
 ```
 pnpm lint && pnpm typecheck && pnpm test && pnpm test:security && pnpm build
 ```
+
 Plus: relevant Playwright flows, `pnpm audit` (no unresolved high/critical), secret scan clean, docs updated, security review checklist completed for changes touching auth, RLS, anonymity, exports, settings or search.
 
 ## 7. When unsure

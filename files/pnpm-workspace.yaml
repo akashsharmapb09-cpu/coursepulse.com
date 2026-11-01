@@ -1,0 +1,10 @@
+﻿allowBuilds:
+  esbuild: true
+  lefthook: true
+  sharp: true
+  unrs-resolver: true
+
+# Temporary, narrowly scoped security override.
+# Verify with tests whenever typescript-eslint is upgraded.
+overrides:
+  "@typescript-eslint/typescript-estree@8.72.1>minimatch": "11.0.3"

@@ -25,7 +25,7 @@ export default defineConfig({
     command: process.env.CI ? "pnpm start" : "pnpm dev",
     url: `${baseURL}/api/v1/health`,
     reuseExistingServer: !process.env.CI,
-    env: { SITE_URL: baseURL },
+    env: { ...process.env, SITE_URL: process.env.SITE_URL ?? baseURL },
     timeout: 120_000,
   },
 });

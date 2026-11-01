@@ -33,20 +33,32 @@ describe("parseServerEnv", () => {
     expect(parseServerEnv(prod).NODE_ENV).toBe("production");
   });
   it("fails fast on missing or malformed core variables", () => {
-    expect(failure({ SITE_URL: "http://localhost:3000" })).toContain("NODE_ENV");
-    expect(failure({ ...dev, SITE_URL: "http://localhost:3000/" })).toContain("SITE_URL");
+    expect(failure({ SITE_URL: "http://localhost:3000" })).toContain(
+      "NODE_ENV",
+    );
+    expect(failure({ ...dev, SITE_URL: "http://localhost:3000/" })).toContain(
+      "SITE_URL",
+    );
     expect(failure({ ...dev, SITE_URL: "not a url" })).toContain("SITE_URL");
   });
   it("requires production secrets and names them", () => {
     const withoutSecret: Record<string, string> = { ...prod };
     delete withoutSecret["AUTH_SECRET"];
-    expect(failure(withoutSecret)).toContain("AUTH_SECRET: required in production");
+    expect(failure(withoutSecret)).toContain(
+      "AUTH_SECRET: required in production",
+    );
   });
   it("rejects non-allow-listed NEXT_PUBLIC_ variables", () => {
-    expect(failure({ ...dev, NEXT_PUBLIC_DATABASE_URL: "x" })).toContain("NEXT_PUBLIC_DATABASE_URL");
+    expect(failure({ ...dev, NEXT_PUBLIC_DATABASE_URL: "x" })).toContain(
+      "NEXT_PUBLIC_DATABASE_URL",
+    );
   });
   it("never echoes secret values in error messages", () => {
-    const message = failure({ ...prod, AUTH_SECRET: "short-secret-value", DEV_DISABLE_RATE_LIMIT: "true" });
+    const message = failure({
+      ...prod,
+      AUTH_SECRET: "short-secret-value",
+      DEV_DISABLE_RATE_LIMIT: "true",
+    });
     expect(message).toContain("AUTH_SECRET");
     expect(message).not.toContain("short-secret-value");
   });

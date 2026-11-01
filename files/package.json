@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "CoursePulse \u2014 Smart Course Feedback & Analytics Portal",
+  "description": "CoursePulse — Smart Course Feedback & Analytics Portal",
   "engines": {
     "node": ">=22.12.0",
     "pnpm": ">=10"
@@ -16,11 +16,11 @@
     "db:down": "docker compose down",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "check:conventions": "node scripts/check-conventions.mjs && node scripts/check-conventions.mjs --self-test",
+    "check:conventions": "node check-conventions.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:security": "vitest run tests/security",
+    "test:security": "vitest run csp.test.ts headers.test.ts origin-check.test.ts request-policy.test.ts env-guards.test.ts env.test.ts",
     "test:e2e": "playwright test",
     "check:unused": "knip",
     "audit:deps": "pnpm audit --audit-level=high",
@@ -43,17 +43,11 @@
     "eslint-config-next": "^16.4.1",
     "knip": "^5.0.0",
     "lefthook": "^1.13.0",
+    "postcss": "^8.5.32",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.0"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "sharp",
-      "esbuild",
-      "unrs-resolver",
-      "lefthook"
-    ]
-  }
+  "packageManager": "pnpm@12.16.1"
 }
