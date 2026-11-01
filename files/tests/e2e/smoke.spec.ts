@@ -80,10 +80,17 @@ for (const path of [
     baseURL,
   }) => {
     expect((await request.get(path)).status()).toBe(404);
+
+    // The production-mode server requires an HTTPS SITE_URL, while Playwright
+    // reaches the local server over HTTP. Use the configured trusted origin so
+    // this assertion tests route absence rather than failing at the origin gate.
+    const trustedOrigin = new URL(
+      process.env.SITE_URL ?? baseURL ?? "",
+    ).origin;
     expect(
       (
         await request.post(path, {
-          headers: { Origin: baseURL ?? "" },
+          headers: { Origin: trustedOrigin },
           data: {},
         })
       ).status(),

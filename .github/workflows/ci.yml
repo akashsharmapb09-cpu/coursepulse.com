@@ -1,4 +1,4 @@
-﻿name: CoursePulse CI
+name: CoursePulse CI
 
 on:
   push:
@@ -75,9 +75,19 @@ jobs:
       - name: Generate temporary CI-only application secrets
         shell: bash
         run: |
-          printf 'AUTH_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
-          printf 'CRON_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
-          printf 'RATE_LIMIT_KEY_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
+          auth_secret="$(openssl rand -base64 48 | tr -d '\n')"
+          cron_secret="$(openssl rand -base64 48 | tr -d '\n')"
+          rate_limit_key_secret="$(openssl rand -base64 48 | tr -d '\n')"
+
+          printf '::add-mask::%s\n' "$auth_secret"
+          printf '::add-mask::%s\n' "$cron_secret"
+          printf '::add-mask::%s\n' "$rate_limit_key_secret"
+
+          {
+            printf 'AUTH_SECRET=%s\n' "$auth_secret"
+            printf 'CRON_SECRET=%s\n' "$cron_secret"
+            printf 'RATE_LIMIT_KEY_SECRET=%s\n' "$rate_limit_key_secret"
+          } >> "$GITHUB_ENV"
 
       - name: Production build
         run: pnpm build
@@ -117,9 +127,19 @@ jobs:
       - name: Generate temporary CI-only application secrets
         shell: bash
         run: |
-          printf 'AUTH_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
-          printf 'CRON_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
-          printf 'RATE_LIMIT_KEY_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$GITHUB_ENV"
+          auth_secret="$(openssl rand -base64 48 | tr -d '\n')"
+          cron_secret="$(openssl rand -base64 48 | tr -d '\n')"
+          rate_limit_key_secret="$(openssl rand -base64 48 | tr -d '\n')"
+
+          printf '::add-mask::%s\n' "$auth_secret"
+          printf '::add-mask::%s\n' "$cron_secret"
+          printf '::add-mask::%s\n' "$rate_limit_key_secret"
+
+          {
+            printf 'AUTH_SECRET=%s\n' "$auth_secret"
+            printf 'CRON_SECRET=%s\n' "$cron_secret"
+            printf 'RATE_LIMIT_KEY_SECRET=%s\n' "$rate_limit_key_secret"
+          } >> "$GITHUB_ENV"
 
       - name: Production build for E2E
         run: pnpm build
