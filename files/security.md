@@ -1,5 +1,8 @@
 # CoursePulse — Security Architecture
 
+> **Status:** the threat model and controls below remain design guidance unless explicitly marked as implemented. The Phase 3 baseline currently implemented and covered by tests consists of startup environment validation, nonce-based CSP, same-origin checks for state-changing API requests, private-route no-index/no-store headers, baseline response headers, the health endpoint and repository secret scanning. Authentication, authorization, database/RLS, rate limiting, anonymous submission and most operational controls are **not implemented**. This document makes no claim of legal compliance, absolute anonymity or absolute defence against any attack class.
+
+
 > **Status: Phase 2 design.** Every control below is **DESIGNED**, not implemented and not verified. No checklist item may be marked PASS until it has implementation _and_ test evidence (see §16). This document makes no claim of legal compliance, absolute anonymity or absolute defence against any attack class.
 
 ## 1. Purpose and scope
@@ -160,7 +163,9 @@ v1 contains **no LLM or AI feature** (D-14); "insights" are deterministic term c
 
 ## 16. Controls status and test plan
 
-All controls: **DESIGNED**. Evidence required before PASS: automated test in `tests/security/**` or a recorded manual check, plus implementation reference. Planned suites: `auth` (enumeration, lockout/limits, session invalidation, reset single-use/expiry), `authz` (role matrix, IDOR matrix), `rls` (SQL §11 list, run as real roles), `anonymity` (no join path exists: schema introspection test fails the build if any FK/column links identity and anonymous tables; threshold/release-rule tests; concurrency double-submit), `csrf` (cross-origin POST rejected for every mutating route — enumerated from the route manifest), `xss` (payload corpus through every text field), `injection` (SQLi corpus through search/filters), `headers/cors`, `rate-limit`, `exports` (formula injection, authorization), `secrets` (gitleaks in CI), `deps` (audit in CI).
+**Implemented and currently verified Phase 3 baseline:** startup environment validation (`src/config/env.ts`, `env.test.ts`, `env-guards.test.ts`); nonce CSP and baseline headers (`src/lib/security/csp.ts`, `headers.ts` and their tests); API mutation origin gate (`src/proxy.ts`, `origin-check.test.ts`, `request-policy.test.ts` and E2E cross-origin test); private-route no-index/no-store headers (Playwright); health endpoint; Gitleaks CI full-history scan and configured Lefthook staged scan. The latest successful GitHub Actions run is [#41275559130](https://github.com/akashsharmapb09-cpu/coursepulse.com/actions/runs/41275559130). This is a baseline only.
+
+**Not implemented yet:** authentication/session controls, role authorization, database grants/RLS, anonymous feedback storage/release rules, rate limiting, Turnstile, audit logs, deletion/consent workflows, backup/restore and the remaining penetration-style suites. Do not mark these PASS. Evidence required before any later control is PASS: automated test in `tests/security/**` or a recorded manual check, plus implementation reference. Planned suites: `auth` (enumeration, lockout/limits, session invalidation, reset single-use/expiry), `authz` (role matrix, IDOR matrix), `rls` (SQL §11 list, run as real roles), `anonymity` (no join path exists: schema introspection test fails the build if any FK/column links identity and anonymous tables; threshold/release-rule tests; concurrency double-submit), `csrf` (cross-origin POST rejected for every mutating route — enumerated from the route manifest), `xss` (payload corpus through every text field), `injection` (SQLi corpus through search/filters), `headers/cors`, `rate-limit`, `exports` (formula injection, authorization), `secrets` (gitleaks in CI), `deps` (audit in CI).
 
 ## 17. Incident reporting
 

@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .next/
 out/
 coverage/
@@ -6,3 +6,4 @@ test-results/
 playwright-report/
 pnpm-lock.yaml
 *.tsbuildinfo
+.env.example

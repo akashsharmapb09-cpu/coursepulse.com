@@ -1,19 +1,35 @@
 # CoursePulse — Development Plan
 
-> Phases follow the master prompt (§23). Each phase must reach its **exit criteria with evidence** before the next starts. Phase 2 (this design) is complete pending your review; **Phase 3 does not begin until you approve.**
+> Phases follow the master prompt (§23). Phase 2 design was reviewed and implementation of Phase 3 was approved. Each phase must reach its **exit criteria with evidence** before the next phase is declared complete.
 
 Legend: ☐ not started · ◐ in progress · ☑ done. Spikes are time-boxed experiments to retire risks early.
 
-| #    | Phase                              | Status                                                                                             |
-| ---- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 1    | Existing project inspection        | ☑ N/A — project is greenfield (no repo to audit); audit checklist moves to CI templates in Phase 3 |
-| 2    | PRD, architecture, DB design, plan | ◐ delivered for review                                                                             |
-| 3–20 | see below                          | ☐                                                                                                  |
+| # | Phase | Status |
+| --- | --- | --- |
+| 1 | Existing project inspection | ☑ N/A — greenfield repository; baseline audit recorded |
+| 2 | PRD, architecture, DB design, plan | ☑ Design baseline documented; institution-specific open decisions remain |
+| 3 | Project setup and environment | ◐ Foundation and CI implemented; local pre-commit hook installation still needs workstation verification |
+| 4–20 | See below | ☐ Not started |
 
 ## Phase 3 — Project setup and environment
 
-**Do:** init repo (pinned Node/pnpm, Next.js, strict TS, Tailwind, shadcn), ESLint with boundary/ban rules (`dangerouslySetInnerHTML`, `$queryRawUnsafe`, bare Prisma client outside `lib/db`), Prettier, Vitest, Playwright skeleton, `config/env.ts`, `.env.example`, `.gitignore`, gitleaks pre-commit + CI, CI pipeline (lint, typecheck, test, build, audit), Docker Postgres for local, security headers scaffold, health route.
-**Exit:** `pnpm lint && pnpm typecheck && pnpm test && pnpm build` green in CI; secret scan green; env validation fails fast on bad config; no unused dependencies.
+**Implemented in the repository:**
+
+- Node.js and pnpm versions pinned; Next.js App Router, React, strict TypeScript and Tailwind CSS v4 set up.
+- shadcn/ui CLI configuration added in `components.json`; actual components are intentionally generated as UI features are built.
+- ESLint security and module-boundary rules, Prettier, Vitest, Playwright, Knip and conventions checks configured.
+- Zod environment validation runs at startup; production-only invariants reject insecure origins, missing required runtime secrets, missing database TLS and reused database-role URLs.
+- `.env.example` documents local-only values and future integration variables using placeholders only; `.gitignore` excludes populated local environment files.
+- Local PostgreSQL Docker Compose scaffold is loopback-bound and requires a local password; it does not yet apply schema or migrations.
+- Lefthook staged-secret hook configured; GitHub Actions independently runs a Gitleaks history scan.
+- GitHub Actions quality/build job runs formatting, lint, conventions, TypeScript, unit/security tests, unused-code checks, dependency audit gate and production build.
+- GitHub Actions responsive Playwright suite runs across five viewport projects.
+
+**Verified evidence:** commit `c187e74` passed GitHub Actions run [#41275559130](https://github.com/akashsharmapb09-cpu/coursepulse.com/actions/runs/41275559130), including production build, Gitleaks and **80/80 Playwright tests**. Earlier local checks also passed: 56 unit tests, 48 security tests, production build and 80/80 Playwright tests. The full dependency tree still has one moderate development-tool advisory; the CI gate is high/critical and the production-only audit was clean at the last local check.
+
+**Remaining Phase 3 acceptance check on the developer workstation:** after pulling this change, run `pnpm install --frozen-lockfile` from `files/`, confirm `pnpm exec lefthook validate` succeeds, and verify Gitleaks is available on `PATH`. The hook deliberately blocks commits if Gitleaks is missing. Until that local hook is verified, Phase 3 remains ◐.
+
+**Exit:** `pnpm lint && pnpm typecheck && pnpm test && pnpm build` green in CI; Gitleaks scan green; environment validation fails fast on invalid configuration; Knip reports no unused dependencies.
 
 ## Phase 4 — Authentication and authorization
 
@@ -24,7 +40,7 @@ Legend: ☐ not started · ◐ in progress · ☑ done. Spikes are time-boxed ex
 ## Phase 5 — Database implementation and migrations
 
 **Spike first (R-09):** does `prisma migrate dev/diff` preserve partial indexes, CHECKs, policies and functions applied by raw SQL? Decide the workflow (reviewed SQL migrations + `migrate deploy`; CI assertion listing every expected policy/constraint/function).
-**Do:** finalize `schema.prisma`; create roles; apply `001_rls_and_permissions` after fixing/validating it; `withRls`; three Prisma clients; seed (demo only, labelled); RLS test suite as real roles; schema-introspection test that no identity↔answer join path exists.
+**Do:** finalize `schema.prisma`; create roles; apply reviewed SQL/RLS migrations after fixing and validating them; `withRls`; three Prisma clients; seed (demo only, labelled); RLS test suite as real roles; schema-introspection test that no identity↔answer join path exists.
 **Exit:** migrations apply from empty DB; RLS tests green; anonymity introspection test green; concurrency double-submit test green.
 
 ## Phase 6 — Student dashboard
@@ -69,7 +85,7 @@ Privacy, Terms, Refund (no paid services) pages as reviewable drafts, cookie con
 
 ## Phase 16 — Security hardening
 
-Full header/CSP review, dependency audit triage, penetration-style tests (IDOR/XSS/CSRF/SQLi corpora), secrets/history scan, log review, backup/restore drill, DB network and TLS settings, cron route hardening. **Exit:** `security.md §16` suites green; risk register updated with residual risk.
+Full header/CSP review, dependency audit triage, penetration-style tests (IDOR/XSS/CSRF/SQLi corpora), secrets/history scan, log review, backup/restore drill, DB network and TLS settings, cron route hardening. **Exit:** security test suites green; risk register updated with residual risk.
 
 ## Phase 17 — Performance optimization
 
@@ -77,7 +93,7 @@ Lighthouse/WebPageTest + RUM on key routes (landing, login, dashboards, form, an
 
 ## Phase 18 — Automated testing
 
-Fill gaps to agreed coverage; contract tests generated from route manifest; Playwright suites per role on 5 viewport bands; visual overflow checks. **Exit:** all suites in CI; flake rate acceptable.
+Fill gaps to agreed coverage; contract tests generated from route manifest; Playwright suites per role on five viewport bands; visual overflow checks. **Exit:** all suites in CI; flake rate acceptable.
 
 ## Phase 19 — Documentation
 
@@ -85,10 +101,10 @@ Final PRD/architecture/security/README/API docs aligned with what exists; testin
 
 ## Phase 20 — Deployment and final verification
 
-Vercel project, managed Postgres, role creation, env/secrets, domain + HTTPS/HSTS, cron, email/Redis/Turnstile/analytics connected **and tested**, smoke tests in production-like environment, final engineering report (PASS/FAIL/PARTIAL/N-A per checklist item with evidence). **Exit:** report delivered; nothing marked PASS without evidence.
+Vercel project, managed PostgreSQL, role creation, env/secrets, domain + HTTPS/HSTS, cron, email/Redis/Turnstile/analytics connected **and tested**, smoke tests in production-like environment, final engineering report (PASS/FAIL/PARTIAL/N-A per checklist item with evidence). **Exit:** report delivered; nothing marked PASS without evidence.
 
 ## Cross-phase rules
 
 - Definition of done: implemented + tested + documented + security reviewed + lint/type/test/build green.
 - Any change to the anonymity design, roles, or RLS requires updating `architecture.md`, `security.md`, `data-inventory.md` and the relevant tests in the same PR.
-- Questions in `docs/assumptions-and-decisions.md §4` must be answered by the phase named there (Time zone and minors policy before Phase 4/5; providers before Phase 3/4; retention/k before Phase 15).
+- Questions in `assumptions-and-decisions.md §4` must be answered by the phase named there (time zone and minors policy before Phase 4/5; providers before Phase 3/4; retention/k before Phase 15).

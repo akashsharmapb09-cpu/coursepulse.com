@@ -1,84 +1,122 @@
 # CoursePulse — Smart Course Feedback & Analytics Portal
 
-> **Project status: Phase 2 (system design) delivered for review. There is no application code yet.** Commands and file paths below describe the _planned_ workflow and will be created in Phase 3 onward; do not expect them to run today.
+> **Current status:** the Phase 3 engineering foundation is in place and the GitHub CI pipeline is green. The product itself is **not ready for users**: the home page is a placeholder, and authentication, database migrations, dashboards, feedback workflows and analytics have not yet been implemented.
 
-CoursePulse collects structured, anonymous student feedback and turns it into course- and instructor-level insight, with separate experiences for **students**, **instructors** and **administrators**. Privacy is the central design constraint: student identity and feedback answers are stored separately and cannot be joined, and results are shown only after a form closes and only in aggregate above a minimum group size. (Anonymity here is logical separation, not cryptographic; limits are documented in `security.md`.)
+CoursePulse is intended to help an institution collect structured student feedback and provide privacy-preserving course and instructor insights. The approved design separates student eligibility from anonymous answers; the limits of that anonymity are documented in the architecture and security design. This repository must not describe the future product features as implemented until their code and tests exist.
 
-## Planned features
+## What exists today
 
-Student dashboard and anonymous feedback submission · dynamic form builder (8 question types, 7 categories) · instructor analytics with trends, category performance and anonymized comments · admin dashboard, catalogue, roster and form management · course comparison · PDF/CSV/Excel reports · permission-aware search · audit logs · data-deletion workflow · cookie consent and privacy/terms pages · SEO-ready public site.
+- Next.js 16 App Router application shell, React 19 and strict TypeScript.
+- Tailwind CSS v4 theme scaffold and shadcn/ui CLI configuration (`components.json`); no shadcn components have been generated yet.
+- Zod-based server environment validation at application startup.
+- Request proxy with nonce-based Content Security Policy, same-origin checks for API mutations, and private-route no-index/no-store headers.
+- Minimal `/api/v1/health` endpoint.
+- ESLint security/boundary rules, Prettier, Vitest, Playwright, Knip and Lefthook tooling.
+- Local PostgreSQL Docker Compose service scaffold. It is not yet connected to application queries and has no applied migrations.
+- GitHub Actions quality/build, responsive E2E and Gitleaks jobs.
 
-## Proposed technology stack
+The latest verified CI run is [GitHub Actions run #41275559130](https://github.com/akashsharmapb09-cpu/coursepulse.com/actions/runs/41275559130): quality/build passed, Gitleaks passed and Playwright passed **80/80 tests** across five viewport projects.
 
-Next.js (App Router) · React · TypeScript (strict) · Tailwind CSS · shadcn/ui · Lucide · Recharts · Framer Motion · React Hook Form · Zod · Prisma · PostgreSQL (RLS) · Better Auth (Argon2id) · Redis-backed rate limiting · Cloudflare Turnstile · transactional email provider · cookieless analytics (consent-gated) · Vitest · React Testing Library · Playwright · ESLint · gitleaks · Vercel + managed PostgreSQL. Rationale and trade-offs: [architecture.md](architecture.md), decisions D-01…D-25 in [docs/assumptions-and-decisions.md](docs/assumptions-and-decisions.md).
+## Not implemented yet
 
-## Documentation map
+- Better Auth, account activation, login, password recovery, sessions and role-based authorization.
+- Applied Prisma migrations, database role creation, RLS policies, database clients or seed/bootstrap tooling.
+- Student, instructor or administrator dashboards.
+- Feedback form builder, anonymous feedback submission or submission confirmation.
+- Live analytics, course comparisons, report exports or search.
+- Email, Redis rate limiting, Turnstile or analytics-provider integrations.
+- Privacy/consent workflows, legal pages and production deployment.
 
-| File                                                                                         | Purpose                                                             |
-| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| [PRD.md](PRD.md)                                                                             | requirements, personas, journeys, metrics                           |
-| [architecture.md](architecture.md)                                                           | system and data architecture, ERD, anonymity design, deletion rules |
-| [security.md](security.md)                                                                   | security architecture, RLS matrix, risk register                    |
-| [docs/api-specification.md](docs/api-specification.md)                                       | endpoints and permissions                                           |
-| [docs/data-inventory.md](docs/data-inventory.md)                                             | field-by-field data minimization record                             |
-| [docs/assumptions-and-decisions.md](docs/assumptions-and-decisions.md)                       | decisions, assumptions, open questions                              |
-| [prisma/schema.prisma](prisma/schema.prisma)                                                 | draft schema (22 models)                                            |
-| [prisma/sql/001_rls_and_permissions.draft.sql](prisma/sql/001_rls_and_permissions.draft.sql) | draft roles, RLS, constraints, anonymity functions (untested)       |
-| [codestyle.md](codestyle.md) · [AGENTS.md](AGENTS.md) · [plan.md](plan.md)                   | conventions, agent rules, roadmap                                   |
+The `schema.prisma` file is a **design draft only**. It has not been validated or migrated. The project must not be used with real student data yet.
 
-## Prerequisites (planned)
+## Technology
 
-Node.js LTS (version pinned in `.nvmrc`/`engines` in Phase 3) · pnpm · Docker (local PostgreSQL) · a PostgreSQL version supported by your managed provider (the design uses `gen_random_uuid()`, `pg_trgm`, RLS and `SECURITY DEFINER` functions) · accounts for: managed Postgres, email provider, Redis, Turnstile, analytics (see open questions in the decisions doc).
+**Installed foundation:** Next.js, React, TypeScript, Tailwind CSS, Zod, ESLint, Prettier, Vitest, Playwright, Knip and Lefthook.
 
-## Environment setup (planned)
+**Planned for later phases:** Better Auth, Prisma/PostgreSQL with reviewed SQL/RLS migrations, React Hook Form, charting/report libraries, Redis, email, Turnstile and consent-gated analytics. Add dependencies when the corresponding feature is implemented; do not assume a planned integration is already connected.
 
-1. Copy `.env.example` to `.env.local` and fill values (the example contains placeholders only; real secrets never go in Git or docs).
-2. Variable groups: database URLs per role (`DATABASE_URL` = `cp_app`, `DATABASE_URL_AUTH`, `DATABASE_URL_MAINT`, `DATABASE_URL_MIGRATE` for operator/CI only), `AUTH_SECRET`, `CRON_SECRET`, email key, Redis credentials, Turnstile keys, site URL, institution contact details (optional; omitted from the UI if unset).
-3. `config/env.ts` validates all variables at start-up and fails fast.
+## Repository documentation
 
-## Database setup, migrations, seed (planned)
+| File | Purpose |
+| --- | --- |
+| [PRD.md](PRD.md) | Product requirements and user journeys |
+| [architecture.md](architecture.md) | Architecture, data model and anonymity design |
+| [security.md](security.md) | Security design, current baseline and remaining risks |
+| [api-specification.md](api-specification.md) | Planned API contracts |
+| [data-inventory.md](data-inventory.md) | Data minimization and field inventory |
+| [assumptions-and-decisions.md](assumptions-and-decisions.md) | Decisions, assumptions and open questions |
+| [schema.prisma](schema.prisma) | Draft database schema; not applied |
+| [plan.md](plan.md) | Phase roadmap and exit criteria |
+| [AGENTS.md](AGENTS.md) · [codestyle.md](codestyle.md) | Engineering and coding rules |
 
-```
-pnpm db:up              # local Postgres container
-pnpm db:migrate         # Prisma migrations + reviewed raw-SQL migrations (roles, RLS, functions) as owner
-pnpm db:seed            # DEMO data only (labelled), refuses to run in production
-pnpm admin:bootstrap -- --email you@example.edu   # first admin; emails an activation link; no default credentials
-```
+## Prerequisites
 
-Runtime roles (`cp_app`, `cp_auth`, `cp_maint`) never own tables and are created by the migration; their passwords are supplied through your secret manager.
+- Node.js **24.22.1** (pinned in the repository-root `.nvmrc`).
+- pnpm **12.16.1** (pinned by `packageManager` in `package.json`).
+- Docker Desktop only when you want to start the local PostgreSQL container.
+- Gitleaks on your `PATH` for the local pre-commit secret scan.
 
-## Development workflow (planned)
+## Local setup
 
-```
-pnpm dev                # local app
-pnpm lint && pnpm typecheck
-pnpm test               # unit + integration (real Postgres container for DB tests)
-pnpm test:security      # rls, idor, csrf, anonymity, xss, headers, rate-limit
-pnpm test:e2e           # Playwright (role flows, links/buttons crawl, mobile viewports)
-pnpm build && pnpm start
-```
+Run commands from the `files/` directory unless stated otherwise.
 
-Work proceeds phase by phase per [plan.md](plan.md); a change is done only when lint, type check, tests, security tests and the production build pass and docs are updated ([AGENTS.md](AGENTS.md)).
+1. Copy `.env.example` to `.env`.
+   - PowerShell: `Copy-Item .env.example .env`
+   - macOS/Linux: `cp .env.example .env`
+2. Edit `.env` and replace `LOCAL_DB_PASSWORD` with a long, unique local-only password before starting Docker Compose.
+3. Install the locked dependencies: `pnpm install --frozen-lockfile`.
+4. Start the Next.js app: `pnpm dev`.
+5. Optional local database container: `pnpm db:up`; stop it with `pnpm db:down`.
 
-## Deployment (planned)
+The current application shell does not query PostgreSQL, so the database container is optional at this stage. Starting it does **not** apply the draft Prisma schema or create the planned least-privilege runtime roles. Do not use the Compose superuser for a future application runtime.
 
-Vercel project + managed PostgreSQL over TLS; apply migrations from CI with the owner role; set runtime secrets per environment; configure the cron job for `/api/internal/maintenance`; verify HTTPS before enabling HSTS; run smoke tests and the final verification checklist. Preview deployments use throw-away databases with demo data only.
+## Environment variables
 
-## API documentation
+The committed `.env.example` contains placeholders and local-only settings, never production credentials.
 
-See [docs/api-specification.md](docs/api-specification.md). Authentication endpoints are served by Better Auth under `/api/auth/*` (allow-listed); all resource endpoints live under `/api/v1/*`.
+- `SITE_URL` is required by the current environment validator and must not end in a slash. Use `http://localhost:3000` locally and an HTTPS URL in production.
+- `TRUSTED_ORIGINS` is an optional comma-separated list; production entries must use HTTPS.
+- `LOCAL_DB_PASSWORD` is required only by the local Docker Compose database service.
+- In production, the current validator requires distinct TLS-enabled `DATABASE_URL`, `DATABASE_URL_AUTH` and `DATABASE_URL_MAINT` values, plus `AUTH_SECRET`, `CRON_SECRET` and `RATE_LIMIT_KEY_SECRET`.
+- `DATABASE_URL_MIGRATE` is reserved for a separate migration/operator environment and must not be present in the production application runtime.
+- Email, Redis and Turnstile variables are optional until those integrations are implemented. Do not add empty values for optional strings; leave unused entries commented out.
+- Only the four documented `NEXT_PUBLIC_*` names in `src/config/env-guards.ts` are allow-listed. Server secrets must never use the `NEXT_PUBLIC_` prefix.
 
-## Security instructions
+Generate each future secret independently (for example, `openssl rand -base64 48`). Store real values in a secret manager or untracked local `.env`, never in GitHub source, documentation, screenshots or logs.
 
-Read [security.md](security.md) and [AGENTS.md §4](AGENTS.md). Report vulnerabilities to the contact the institution publishes in `/.well-known/security.txt` (to be supplied; none is invented here). Never commit secrets; never log identifiers on the feedback-submission route.
+## Available commands
 
-## Troubleshooting (planned; extended as the system is built)
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start local Next.js development server |
+| `pnpm format:check` / `pnpm format` | Check / apply Prettier |
+| `pnpm lint` | ESLint |
+| `pnpm check:conventions` | Additional AST-based project/security conventions |
+| `pnpm typecheck` | TypeScript check |
+| `pnpm test` | Unit tests |
+| `pnpm test:security` | Environment, origin, CSP and header tests |
+| `pnpm test:e2e` | Playwright responsive smoke tests |
+| `pnpm check:unused` | Knip unused-code/dependency analysis |
+| `pnpm audit:deps` | Dependency audit gate (fails on high/critical findings) |
+| `pnpm build` / `pnpm start` | Production build / server |
+| `pnpm db:up` / `pnpm db:down` | Local PostgreSQL container only |
 
-- _Boot fails with env validation error_ → compare `.env.local` with `.env.example`; all required variables must be set.
-- _Queries return no rows locally_ → authenticated queries must run inside `withRls`; confirm the connection uses `cp_app`, not the owner.
-- _Migration drift complaints from Prisma_ → raw-SQL objects are managed by the reviewed SQL migrations (see R-09); do not auto-accept drops.
-- _Rate limiting blocks local testing_ → use the documented development override (disabled in production builds).
+## Git hooks and CI
 
-## Licence and legal
+The repository configures Lefthook to scan staged changes with Gitleaks before a commit. Install Gitleaks locally and make sure the `gitleaks` executable is on `PATH`; the hook intentionally fails closed when it is missing. After pulling updates, run `pnpm install --frozen-lockfile` from `files/` so the `prepare` script installs the Git hook. GitHub Actions independently runs the full-history Gitleaks scan and the quality/build/E2E pipeline.
 
-Licence to be chosen by the project owner. Privacy Policy, Terms and Refund Policy pages are drafts for institutional/legal review; nothing in this repository asserts legal compliance.
+The full dependency audit currently reports one **moderate** development-tool dependency advisory. The CI audit gate is configured to fail on high/critical severity; the production-only dependency audit was clean at the last local check. This is not a claim that the complete dependency tree is vulnerability-free.
+
+## Deployment status
+
+No Vercel project, production database, domain, email provider, Redis, Turnstile or analytics provider is connected by this repository setup. Production deployment and verification belong to Phase 20 and must not be inferred from a green CI run.
+
+## Security and legal
+
+Read [security.md](security.md) before changing security-sensitive code. Current security controls are a baseline, not a completed security review or a claim of regulatory compliance. Product privacy, Terms and any payment-related policies require institution-specific and qualified legal review before launch.
+
+The product owner must provide verified institutional contact details and any security-reporting contact; this repository does not invent them.
+
+## Licence
+
+The project is currently marked `UNLICENSED`. A licence and institutional ownership terms must be decided by the project owner.
