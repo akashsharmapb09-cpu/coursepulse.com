@@ -37,17 +37,15 @@ The `schema.prisma` file is a **design draft only**. It has not been validated o
 
 ## Repository documentation
 
-| File                                                         | Purpose                                               |
-| ------------------------------------------------------------ | ----------------------------------------------------- |
-| [PRD.md](PRD.md)                                             | Product requirements and user journeys                |
-| [architecture.md](architecture.md)                           | Architecture, data model and anonymity design         |
-| [security.md](security.md)                                   | Security design, current baseline and remaining risks |
-| [api-specification.md](api-specification.md)                 | Planned API contracts                                 |
-| [data-inventory.md](data-inventory.md)                       | Data minimization and field inventory                 |
-| [assumptions-and-decisions.md](assumptions-and-decisions.md) | Decisions, assumptions and open questions             |
-| [schema.prisma](schema.prisma)                               | Draft database schema; not applied                    |
-| [plan.md](plan.md)                                           | Phase roadmap and exit criteria                       |
-| [AGENTS.md](AGENTS.md) · [codestyle.md](codestyle.md)        | Engineering and coding rules                          |
+- [PRD.md](PRD.md) — product requirements and user journeys.
+- [architecture.md](architecture.md) — architecture, data model and anonymity design.
+- [security.md](security.md) — security design, current baseline and remaining risks.
+- [api-specification.md](api-specification.md) — planned API contracts.
+- [data-inventory.md](data-inventory.md) — data minimization and field inventory.
+- [assumptions-and-decisions.md](assumptions-and-decisions.md) — decisions, assumptions and open questions.
+- [schema.prisma](schema.prisma) — draft database schema; not applied.
+- [plan.md](plan.md) — phase roadmap and exit criteria.
+- [AGENTS.md](AGENTS.md) and [codestyle.md](codestyle.md) — engineering and coding rules.
 
 ## Prerequisites
 
@@ -86,20 +84,18 @@ Generate each future secret independently (for example, `openssl rand -base64 48
 
 ## Available commands
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Start local Next.js development server |
-| `pnpm format:check` / `pnpm format` | Check / apply Prettier |
-| `pnpm lint` | ESLint |
-| `pnpm check:conventions` | Additional AST-based project/security conventions |
-| `pnpm typecheck` | TypeScript check |
-| `pnpm test` | Unit tests |
-| `pnpm test:security` | Environment, origin, CSP and header tests |
-| `pnpm test:e2e` | Playwright responsive smoke tests |
-| `pnpm check:unused` | Knip unused-code/dependency analysis |
-| `pnpm audit:deps` | Dependency audit gate (fails on high/critical findings) |
-| `pnpm build` / `pnpm start` | Production build / server |
-| `pnpm db:up` / `pnpm db:down` | Local PostgreSQL container only |
+- `pnpm dev` — start the local Next.js development server.
+- `pnpm format:check` / `pnpm format` — check or apply Prettier.
+- `pnpm lint` — run ESLint.
+- `pnpm check:conventions` — run additional AST-based project/security conventions.
+- `pnpm typecheck` — run the TypeScript check.
+- `pnpm test` — run unit tests.
+- `pnpm test:security` — run environment, origin, CSP and header tests.
+- `pnpm test:e2e` — run Playwright responsive smoke tests.
+- `pnpm check:unused` — run Knip unused-code/dependency analysis.
+- `pnpm audit:deps` — run the dependency audit gate (fails on high/critical findings).
+- `pnpm build` / `pnpm start` — build or start the production server.
+- `pnpm db:up` / `pnpm db:down` — start or stop the local PostgreSQL container only.
 
 ## Git hooks and CI
 
